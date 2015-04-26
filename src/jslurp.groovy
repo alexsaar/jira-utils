@@ -1,11 +1,5 @@
 #!/usr/bin/env groovy
 
-/* 
- * generate lead times for IW issues
- *
- * Uses JIRA REST API: https://docs.atlassian.com/software/jira/docs/api/REST/latest/
- */
-
 import groovy.util.CliBuilder
 
 D_FILE = "issues.txt"
@@ -25,7 +19,7 @@ enum FieldNames {
 	}
 }
 
-cli = new CliBuilder(usage:'./slurp [options]', header:'Options:')
+cli = new CliBuilder(usage:'./jslurp [options]', header:'Options:')
 cli.with {
 	h longOpt: 'help', 'Show usage information'
 	d longOpt: 'dry', args: 0, "dry run"
@@ -37,7 +31,7 @@ cli.with {
 
 opts = cli.parse(args)
 
-if (!opts || opts.help) println ""//cli.usage()
+if (!opts || opts.help) println cli.usage()
 else slurp(opts)
 
 def slurp(opts) {
