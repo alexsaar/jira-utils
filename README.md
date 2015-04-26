@@ -7,5 +7,5 @@ JIRA Sluper imports JIRA issues from text files.
 
 ## Installation
 * `brew tap alexsaar/taps`
-* `brew install jira-slurper`
-* `slurp -h`
+* `brew install Jslurp`
+* `jslurp -h`
