@@ -1,23 +1,17 @@
 #!/usr/bin/env groovy
 
+import static groovyx.net.http.Method.POST
+import static groovyx.net.http.ContentType.JSON
+
 import groovy.util.CliBuilder
+import groovyx.net.http.HTTPBuilder
+import org.apache.http.HttpRequestInterceptor
+import org.apache.http.HttpRequest
+import org.apache.http.protocol.HttpContext
+
+@Grab(group='org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.7')
 
 D_FILE = "issues.txt"
-
-enum FieldNames {
-	p ("project"), t ("type"), prio ("priority"), e ("epic"), l ("labels"), 
-	c ("components"), s ("summary"), d ("description"), fix ("fixVersions");
-
-    private final String name;       
-    private FieldNames(String s) { name = s; }
-    public String toString() { return name; }
-	public static boolean contains(String s) {
-		for (FieldNames name:values()) {
-			if (name.name().equals(s)) return true;
-		}
-		return false;
-	}
-}
 
 cli = new CliBuilder(usage:'./jslurp [options]', header:'Options:')
 cli.with {
@@ -39,41 +33,63 @@ def slurp(opts) {
 	if(!f.exists()) { println "${f} does not exist" }
 	else {
 		println "processing ${f}"
-		def issues = []
-		
-		def issue = [:]
+
+        def issues = []
+
+        def issue = [:]
 		f.eachLine { line ->
 			line = line.trim()
 			if (line && !line.startsWith("#")) {
 				def (key, value) = line.split(':').collect { it.trim() }
-				issue[FieldNames.contains("$key") ? FieldNames.valueOf("$key") : "$key"] = value
+				issue[key] = value
 			} else if (!line) {
 				if(issue) {
-					issues << issue
+                    issues << createBody(issue)
 					issue = [:]
 				}
 			}
 		}
 	    if(issue) {
-	      issues << issue
+            issues << createBody(issue)
 	    }
-		
-		// build credentials arg
-		creds = []
-		if (opts.usr) creds << "--user" << opts.u
-		if (opts.pwd) creds << "--password" << opts.p
-		if (opts.svr) creds << "--server" << opts.s
-		
-		issues.eachWithIndex { it, index ->
-			cmd = []
-			it.each { k, v -> cmd << "--$k" << "$v" }
-			
-			if (opts.dry) println cmd
-			else {
-				p = (["jira"] + creds + ["--action", "createIssue", "--autoComponent"] + cmd).execute(); p.waitFor()
-				if (p.exitValue()) print p.err.text
-				else print p.text
-			}
-		}
+        def jira = getClient(opts)
+        issues.each { i ->
+            jira.request(POST, JSON) { req ->
+                uri.path = "issue/"
+                body = i
+                response.success = { resp, data ->
+                    println "Created ${data.key}"
+                }
+                response.failure = { resp ->
+                    println "Failed to create issue (${resp.status})"
+                }
+            }
+        }
 	}
+}
+
+def GString createBody(issue) {
+    def comps = "";
+
+    issue['c'].split(',').collect { it.trim() }.eachWithIndex { item, index ->
+        comps += index == 0 ? "" : ",";
+        comps += "{ \"name\": \"${item}\" }"
+    }
+    "{ \"fields\": { \"project\": { \"key\":\"${issue['p']}\" }, \"summary\":\"${issue['s']}\", \"description\":\"${issue['d']}\", \"issuetype\": { \"name\": \"${issue['t']}\" }, \"priority\": { \"name\": \"${issue['prio']}\" }, \"fixVersions\": [ { \"name\": \"${issue['fv']}\" } ], \"components\": [ ${comps} ] } }"
+}
+
+def getClient(opts) {
+    println "Connecting to ${opts.svr} ..."
+
+    def jira = new HTTPBuilder(opts.svr + "/rest/api/latest/");
+    jira.client.addRequestInterceptor(new HttpRequestInterceptor() {
+        void process(HttpRequest req, HttpContext ctx) {
+            req.addHeader('Authorization', "Basic " + "${opts.usr}:${opts.pwd}".bytes.encodeBase64().toString())
+        }
+    })
+
+    def serverInfo = jira.get(path: 'serverInfo')
+    println "Connected to ${serverInfo.serverTitle} (version ${serverInfo.version})\n"
+
+    return jira
 }

@@ -1,21 +1,21 @@
 #issue1
 p:TEST
-t:bug
-prio:major
+t:Bug
+prio:Major
 l:tests,cli
 c:a,Other
 s:my issue
 d:lorem ipsum
 #theme:MarketingCloud-Integration
-fix:2
+fv:2
 
 #issues2
 p:TEST
-t:improvement
-prio:normal
+t:Improvement
+prio:Normal
  #e:CQ-21675
 l:tests
 c:b
 s:my issue 2
 d:dolor set blablavla
-fix:1.2.3
+fv:1.2.3
