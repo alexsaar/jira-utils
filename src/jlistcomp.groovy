@@ -1,6 +1,7 @@
 #!/usr/bin/env groovy
 
 import groovy.util.CliBuilder
+import org.apache.commons.cli.Option
 import groovyx.net.http.HTTPBuilder
 import org.apache.http.HttpRequestInterceptor
 import org.apache.http.HttpRequest
@@ -11,7 +12,7 @@ import org.apache.http.protocol.HttpContext
 cli = new CliBuilder(usage:'./jlistcomp [options]', header:'Options:')
 cli.with {
     h longOpt: 'help', 'Show usage information'
-    pr longOpt: 'project', args: 1, argName: 'project', "JIRA Project Name"
+    pr longOpt: 'project', args:Option.UNLIMITED_VALUES, valueSeparator: ',', argName: 'project', "JIRA Project Name"
     o longOpt: 'owner', "Fetch owner name"
     u longOpt: 'usr', args: 1, argName: 'usr', "JIRA user name"
     p longOpt: 'pwd', args: 1, argName: 'pwd', "JIRA password"
@@ -25,15 +26,20 @@ else listComp(opts)
 
 def listComp(opts) {
     def jira = getClient(opts)
-    jira.get(path: "project/${opts.project}") { resp, project ->
-        project.components.each { component ->
-            if (opts.o) {
-                jira.get(path: "component/${component.id}") { respCompDetails, compDetails ->
-                    def lead = compDetails.lead ? compDetails.lead.name : "N/A"
-                    println "${component.name},${lead}"
+
+    opts.projects.each { project ->
+        jira.get(path: "project/${project}") { resp, p ->
+            println "\n${project}"
+
+            p.components.each { c ->
+                if (opts.o) {
+                    jira.get(path: "component/${c.id}") { respCD, cd ->
+                        def lead = cd.lead ? cd.lead.name : "N/A"
+                        println "${cd.name},${lead}"
+                    }
+                } else {
+                    println "${c.name}"
                 }
-            } else {
-                println "${component.name}"
             }
         }
     }
@@ -50,7 +56,7 @@ def getClient(opts) {
     })
 
     def serverInfo = jira.get(path: 'serverInfo')
-    println "Connected to ${serverInfo.serverTitle} (version ${serverInfo.version})\n"
+    println "Connected to ${serverInfo.serverTitle} (version ${serverInfo.version})"
 
     return jira
 }
