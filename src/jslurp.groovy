@@ -11,25 +11,20 @@ import org.apache.http.protocol.HttpContext
 
 @Grab(group='org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.7')
 
-D_FILE = "issues.txt"
-
-cli = new CliBuilder(usage:'./jslurp [options]', header:'Options:')
+def cli = new CliBuilder(usage:'./jslurp [options]', header:'Options:')
 cli.with {
-	h longOpt: 'help', 'Show usage information'
-	d longOpt: 'dry', args: 0, "dry run"
-	f longOpt: 'file', args: 1, argName: 'file', "file to slurp (defaults to ${D_FILE})"
-	u longOpt: 'usr', args: 1, argName: 'usr', "JIRA user name"
-	p longOpt: 'pwd', args: 1, argName: 'pwd', "JIRA password"
-	s longOpt: 'svr', args: 1, argName: 'svr', "JIRA server"
+	f longOpt: 'file', args: 1, argName: 'file', "file to slurp (defaults to issues.txt)"
+	u longOpt: 'usr', args: 1, argName: 'usr', "JIRA user name", required: true
+	p longOpt: 'pwd', args: 1, argName: 'pwd', "JIRA password", required: true
+	s longOpt: 'svr', args: 1, argName: 'svr', "JIRA server", required: true
 }
 
-opts = cli.parse(args)
-
-if (!opts || opts.help) println cli.usage()
-else slurp(opts)
+def options = cli.parse(args)
+if (!options) return
+else slurp(options)
 
 def slurp(opts) {
-	File f = new File(opts.file ? opts.file : D_FILE)
+	File f = new File(opts.file ? opts.file : "issues.txt")
 	if(!f.exists()) { println "${f} does not exist" }
 	else {
 		println "processing ${f}"
