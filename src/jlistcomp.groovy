@@ -9,20 +9,18 @@ import org.apache.http.protocol.HttpContext
 
 @Grab(group='org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.7')
 
-cli = new CliBuilder(usage:'./jlistcomp [options]', header:'Options:')
+def cli = new CliBuilder(usage:'./jlistcomp [options]', header:'Options:', stopAtNonOption: false)
 cli.with {
-    h longOpt: 'help', 'Show usage information'
-    pr longOpt: 'project', args:Option.UNLIMITED_VALUES, valueSeparator: ',', argName: 'project', "JIRA Project Name"
+    pr longOpt: 'project', args:Option.UNLIMITED_VALUES, valueSeparator: ',', argName: 'project', "JIRA Project Name", required: true
     o longOpt: 'owner', "Fetch owner name"
-    u longOpt: 'usr', args: 1, argName: 'usr', "JIRA user name"
-    p longOpt: 'pwd', args: 1, argName: 'pwd', "JIRA password"
-    s longOpt: 'svr', args: 1, argName: 'svr', "JIRA server"
+    u longOpt: 'usr', args: 1, argName: 'usr', "JIRA user name", required: true
+    p longOpt: 'pwd', args: 1, argName: 'pwd', "JIRA password", required: true
+    s longOpt: 'svr', args: 1, argName: 'svr', "JIRA server", required: true
 }
 
-opts = cli.parse(args)
-
-if (!opts || opts.help) println cli.usage()
-else listComp(opts)
+def options = cli.parse(args)
+if (!options) return
+else listComp(options)
 
 def listComp(opts) {
     def jira = getClient(opts)
