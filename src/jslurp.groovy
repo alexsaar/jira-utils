@@ -50,7 +50,6 @@ def slurp(opts) {
         def jira = getClient(opts)
         issues.each { i ->
             if (i) {
-                println i
                 jira.request(POST, JSON) { req ->
                     uri.path = "issue/"
                     body = i
