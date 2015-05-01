@@ -39,38 +39,65 @@ def slurp(opts) {
 				issue[key] = value
 			} else if (!line) {
 				if(issue) {
-                    issues << createBody(issue)
+                    issues << createIssuesRequest(issue)
 					issue = [:]
 				}
 			}
 		}
 	    if(issue) {
-            issues << createBody(issue)
+            issues << createIssuesRequest(issue)
 	    }
         def jira = getClient(opts)
         issues.each { i ->
-            jira.request(POST, JSON) { req ->
-                uri.path = "issue/"
-                body = i
-                response.success = { resp, data ->
-                    println "Created ${data.key}"
-                }
-                response.failure = { resp ->
-                    println "Failed to create issue (${resp.status})"
+            if (i) {
+                println i
+                jira.request(POST, JSON) { req ->
+                    uri.path = "issue/"
+                    body = i
+                    response.success = { resp, data ->
+                        println "Created ${data.key}"
+                    }
+                    response.failure = { resp, data ->
+                        println "Failed to create issue (${resp.statusLine}): ${data} "
+                    }
                 }
             }
         }
 	}
 }
 
-def GString createBody(issue) {
-    def comps = "";
+def GString createIssuesRequest(issue) {
+    if (!issue['p']) { println "Missing project key => skipping"; return }
+    if (!issue['s']) { println "Missing summary => skipping"; return }
 
-    issue['c'].split(',').collect { it.trim() }.eachWithIndex { item, index ->
-        comps += index == 0 ? "" : ",";
-        comps += "{ \"name\": \"${item}\" }"
+    project = "\"project\": { \"key\":\"${issue['p']}\" }"
+    summary = ", \"summary\": \"${issue['s']}\""
+    desc = issue['d'] ? ", \"description\":\"${issue['d']}\"" : ""
+    type = issue['t'] ? ", \"issuetype\": { \"name\": \"${issue['t']}\" }" : ""
+    prio = issue['prio'] ? ", \"priority\": { \"name\": \"${issue['prio']}\" }" : ""
+    fix = issue['fv'] ? ", \"fixVersions\": [ ${createMultiParam(issue, 'fv')} ]" : ""
+    comps = issue['c'] ? ", \"components\": [ ${createMultiParam(issue, 'c')} ]" : ""
+    labels = issue['l'] ? ", \"labels\": [ ${createListParam(issue, 'l')} ]" : ""
+
+    return "{ \"fields\": { ${project}${summary}${desc}${type}${prio}${fix}${comps}${labels} } }"
+}
+
+def Object createListParam(issue, key) {
+    def tmp = "";
+    issue[key].split(',').collect { it.trim() }.eachWithIndex { item, index ->
+        tmp += index == 0 ? "" : ",";
+        tmp += "\"${item}\""
     }
-    "{ \"fields\": { \"project\": { \"key\":\"${issue['p']}\" }, \"summary\":\"${issue['s']}\", \"description\":\"${issue['d']}\", \"issuetype\": { \"name\": \"${issue['t']}\" }, \"priority\": { \"name\": \"${issue['prio']}\" }, \"fixVersions\": [ { \"name\": \"${issue['fv']}\" } ], \"components\": [ ${comps} ] } }"
+    return tmp
+}
+
+def Object createMultiParam(issue, key) {
+    def tmp = "";
+    issue[key].split(',').collect { it.trim() }.eachWithIndex { item, index ->
+        tmp += index == 0 ? "" : ",";
+        tmp += "{ \"name\": \"${item}\" }"
+    }
+    return tmp
 }
 
 def getClient(opts) {
